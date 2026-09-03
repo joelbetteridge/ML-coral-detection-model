@@ -1,0 +1,208 @@
+# ============================================================
+# STAGHORN V1 - COMPLETE TAGLAB DATASET MERGER
+#
+# Source:
+#   Site
+#     -> Working_Area
+#       -> training / validation / test
+#         -> images / labels
+#
+# Output:
+#   Staghorn_v1
+#     -> training / validation / test
+#       -> images / labels
+#
+# Original data is COPIED, never moved or deleted.
+# ============================================================
+ 
+$Source = Get-Location
+$Output = Join-Path $Source "Staghorn_v1"
+ 
+# --------------------------------------------------------------
+# Create TagLab's required folder structure
+# --------------------------------------------------------------
+foreach ($Split in @("training", "validation", "test")) {
+    New-Item -ItemType Directory -Force `
+        -Path (Join-Path $Output "$Split\images") | Out-Null
+    New-Item -ItemType Directory -Force `
+        -Path (Join-Path $Output "$Split\labels") | Out-Null
+}
+ 
+# --------------------------------------------------------------
+# Counters
+# --------------------------------------------------------------
+$PairsCopied = 0
+$MissingLabels = 0
+$DuplicateNames = 0
+$CopyErrors = 0
+ 
+# --------------------------------------------------------------
+# Find every working-area training/validation/test folder
+# --------------------------------------------------------------
+foreach ($Split in @("training", "validation", "test")) {
+ 
+    Write-Host ""
+    Write-Host "==================================================" -ForegroundColor Cyan
+    Write-Host "PROCESSING: $Split" -ForegroundColor Cyan
+    Write-Host "==================================================" -ForegroundColor Cyan
+ 
+    $SplitFolders = Get-ChildItem `
+        -Path $Source `
+        -Directory `
+        -Recurse |
+        Where-Object { $_.Name -eq $Split }
+ 
+    foreach ($Folder in $SplitFolders) {
+ 
+        # Don't accidentally process the new combined dataset
+        if ($Folder.FullName.StartsWith($Output)) { continue }
+ 
+        $ImagesFolder = Join-Path $Folder.FullName "images"
+        $LabelsFolder = Join-Path $Folder.FullName "labels"
+ 
+        # Check required folders exist
+        if (!(Test-Path $ImagesFolder)) {
+            Write-Host ""
+            Write-Host "WARNING: Missing images folder:" -ForegroundColor Yellow
+            Write-Host $ImagesFolder
+            continue
+        }
+        if (!(Test-Path $LabelsFolder)) {
+            Write-Host ""
+            Write-Host "WARNING: Missing labels folder:" -ForegroundColor Yellow
+            Write-Host $LabelsFolder
+            continue
+        }
+ 
+        # ----------------------------------------------------------
+        # Work out Site and Working Area names
+        # ----------------------------------------------------------
+        $RelativePath = $Folder.FullName.Substring(
+            $Source.Path.Length
+        ).TrimStart('\')
+ 
+        $Parts = $RelativePath -split '\\'
+ 
+        if ($Parts.Count -ge 3) {
+            $Site = $Parts[0]
+            # The folder immediately above training/validation/test
+            $WorkingArea = $Parts[$Parts.Count - 2]
+        } else {
+            $Site = "UnknownSite"
+            $WorkingArea = "UnknownArea"
+        }
+ 
+        # Make names safe for Windows
+        $Site = $Site -replace '[\\/:*?"<>|]', '_'
+        $WorkingArea = $WorkingArea -replace '[\\/:*?"<>|]', '_'
+ 
+        Write-Host ""
+        Write-Host "Site: $Site" -ForegroundColor Green
+        Write-Host "Working area: $WorkingArea" -ForegroundColor Green
+        Write-Host "Split: $Split"
+ 
+        # ----------------------------------------------------------
+        # Process every image
+        # ----------------------------------------------------------
+        $Images = Get-ChildItem -Path $ImagesFolder -File
+ 
+        foreach ($Image in $Images) {
+ 
+            $BaseName = $Image.BaseName
+ 
+            # Find corresponding label
+            $Label = Get-ChildItem -Path $LabelsFolder -File |
+                Where-Object { $_.BaseName -eq $BaseName }
+ 
+            # No matching label
+            if ($Label.Count -eq 0) {
+                Write-Host ""
+                Write-Host "MISSING LABEL:" -ForegroundColor Red
+                Write-Host "$($Image.Name)"
+                $MissingLabels++
+                continue
+            }
+ 
+            # Multiple matching labels
+            if ($Label.Count -gt 1) {
+                Write-Host ""
+                Write-Host "MULTIPLE LABELS:" -ForegroundColor Red
+                Write-Host "$($Image.Name)"
+                $DuplicateNames++
+                continue
+            }
+ 
+            $Label = $Label[0]
+ 
+            # Create unique filename
+            $NewBaseName = "${Site}_${WorkingArea}_${BaseName}"
+            $NewImageName = $NewBaseName + $Image.Extension
+            $NewLabelName = $NewBaseName + $Label.Extension
+ 
+            $DestinationImage = Join-Path $Output "$Split\images\$NewImageName"
+            $DestinationLabel = Join-Path $Output "$Split\labels\$NewLabelName"
+ 
+            # Prevent overwriting existing files
+            if ((Test-Path $DestinationImage) -or (Test-Path $DestinationLabel)) {
+                Write-Host ""
+                Write-Host "DUPLICATE DESTINATION:" -ForegroundColor Red
+                Write-Host "$NewBaseName"
+                $DuplicateNames++
+                continue
+            }
+ 
+            # Copy image and label
+            try {
+                Copy-Item -LiteralPath $Image.FullName -Destination $DestinationImage -ErrorAction Stop
+                Copy-Item -LiteralPath $Label.FullName -Destination $DestinationLabel -ErrorAction Stop
+                $PairsCopied++
+            } catch {
+                Write-Host ""
+                Write-Host "COPY ERROR:" -ForegroundColor Red
+                Write-Host "$($Image.Name)"
+                Write-Host $_.Exception.Message
+                $CopyErrors++
+            }
+        }
+    }
+}
+ 
+# ============================================================
+# FINAL VERIFICATION
+# ============================================================
+Write-Host ""
+Write-Host ""
+Write-Host "==================================================" -ForegroundColor Cyan
+Write-Host "MERGE COMPLETE" -ForegroundColor Cyan
+Write-Host "==================================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Image/label pairs copied: $PairsCopied"
+Write-Host "Missing labels: $MissingLabels"
+Write-Host "Duplicate names: $DuplicateNames"
+Write-Host "Copy errors: $CopyErrors"
+Write-Host ""
+Write-Host "FINAL DATASET COUNTS"
+Write-Host "--------------------------------------------------"
+ 
+foreach ($Split in @("training", "validation", "test")) {
+    $ImageFolder = Join-Path $Output "$Split\images"
+    $LabelFolder = Join-Path $Output "$Split\labels"
+    $ImageCount = (Get-ChildItem $ImageFolder -File).Count
+    $LabelCount = (Get-ChildItem $LabelFolder -File).Count
+ 
+    Write-Host ""
+    Write-Host "$Split"
+    Write-Host "  Images: $ImageCount"
+    Write-Host "  Labels: $LabelCount"
+ 
+    if ($ImageCount -eq $LabelCount) {
+        Write-Host "  STATUS: OK" -ForegroundColor Green
+    } else {
+        Write-Host "  STATUS: MISMATCH!" -ForegroundColor Red
+    }
+}
+ 
+Write-Host ""
+Write-Host "Dataset created at:"
+Write-Host $Output
+Write-Host ""
