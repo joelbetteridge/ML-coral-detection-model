@@ -1,0 +1,83 @@
+# Configuration file for coral detection models
+
+{
+  "Available Classifiers": [
+    {
+      "Classifier Name": "Porite",
+      "Weights": "porites.net",
+      "Num. Classes": 2,
+      "Classes": {
+        "Porite": 0,
+        "Background": 1
+      },
+      "Scale": 0.9,
+      "Average Norm.": [
+        0.4651,
+        0.4765,
+        0.4634
+      ]
+    },
+	{
+      "Classifier Name": "Staghorn",
+      "Weights": "Stag_v1+.net",
+      "Num. Classes": 2,
+      "Classes": {
+        "Background": 0,
+        "Staghorn": 1
+      },
+      "Scale": 0.9,
+      "Average Norm.": [
+        0.5932,
+        0.5870,
+        0.5226
+      ]
+    },
+	{
+      "Classifier Name": "Staghorn++",
+      "Weights": "Stag_v1++.net",
+      "Num. Classes": 2,
+      "Classes": {
+        "Background": 0,
+        "Staghorn": 1
+      },
+      "Scale": 0.9,
+      "Average Norm.": [
+        0.5932,
+        0.5870,
+        0.5226
+      ]
+    },
+    {
+      "Classifier Name": "Pocillopora",
+      "Weights": "pocillopora.net",
+      "Num. Classes": 2,
+      "Classes": {
+        "Pocillopora": 0,
+        "Background": 1
+      },
+      "Scale": 0.9,
+      "Average Norm.": [
+        0.445,
+        0.4441,
+        0.4351
+      ]
+    },
+    {
+      "Classifier Name": "Pocillopora_Porite_Montipora",
+      "Weights": "pocillopora_porite_montipora.net",
+      "Num. Classes": 4,
+      "Classes": {
+        "Porite": 0,
+        "Montipora": 1,
+        "Pocillopora": 2,
+        "Background": 3
+      },
+      "Scale": 0.9,
+      "Average Norm.": [
+        0.4433,
+        0.4499,
+        0.4408
+      ]
+    }
+  ]
+}
