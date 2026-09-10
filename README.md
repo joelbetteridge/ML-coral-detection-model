@@ -29,7 +29,7 @@ The model performs **pixel-wise semantic segmentation** on underwater orthomosai
 
 | Hyperparameter / Setting | `Stag_v1++` | `Stag_v1FB` |
 | :--- | :--- | :--- |
-| **Loss Function** | Focal Tversky ($\alpha=0.6, \gamma=0.75$) | Focal + Boundary Loss ($\text{Epoch}_{\text{switch}}=10, \text{Epoch}_{\text{trans}}=10$) |
+| **Loss Function** | Focal Tversky ($\alpha=0.6, \gamma=0.75$) | Focal + Boundary Loss (Epochswitch = 10, Epochtrans = 10) |
 | **Learning Rate** | $0.00005$ | $0.000025$ (Halved to suppress gradient spikes) |
 | **Batch Size** | 8 | 4 (Stabilized with step damping) |
 | **Completed Epochs** | 13 (Interrupted baseline) | 50 (Full boundary convergence) |
@@ -138,7 +138,7 @@ Training DeepLabV3+ with custom boundary loss under modern Python environments r
 
 - **NumPy Boolean Deprecation (`models/losses.py`):** Replaced legacy `np.bool` with Python `bool` across distance-transform conversion arrays (`one_hot2dist`) to prevent runtime failure in modern environments.
 - **Device Tensor Mismatches (`models/losses.py`):** Corrected boundary loss normalization bounds (`xmin`, `xmax`) from `torch.tensor` declarations to primitive floats (`-90.0`, `90.0`) to avoid fatal CPU/GPU tensor mismatch exceptions during epoch 10 turnover.
-- **Validation Memory Overflow (`models/training.py`):** Disabled memory-heavy full-dataset flattening (`flag_compute_mIoU = False`) during test passes to prevent RAM exhaustion on large test suites.
+- **Validation Memory Overflow (`models/training.py`):** Disabled memory-heavy full-dataset flattening (`flag_compute_mIoU = False`) during test passes to prevent RAM exhaustion on large test suites. Changed dtype = int to int.64 for windows system application.
 - **Alpha Channel Harmonization (`scripts/fix_channel_mismatch.py`):** Developed a standalone pipeline to detect and flatten 4-channel RGBA tiles onto black backgrounds, eliminating dimension broadcast crashes in `computeAverage()`.
 
 ### Known Limitations
