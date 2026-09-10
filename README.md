@@ -172,6 +172,6 @@ University of York, BSc Ecology (Third Year)
 
 ---
 
-## License
+## AI integrity 
 
-This model and SOP are provided as-is for reef restoration research. Please contact RRFB before using this model for commercial purposes.
+These scripts were AI assisted and human edited.
