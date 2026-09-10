@@ -6,7 +6,9 @@
 
 ## Overview
 
-This repository contains the first automated coral detection model deployed at [Reef Renewal Foundation Bonaire (RRFB)](https://reefrenewalbonaire.org). The model uses DeepLabV3+ trained in TagLab to achieve fast and consistent annotation of Staghorn in local underwater orthomosaics for restoration monitoring. It uses existing TagLab scripts, edited versions, and 3 new scripts (see SOP.pdf)
+This repository contains the first automated coral detection models deployed at [Reef Renewal Foundation Bonaire (RRFB)](https://reefrenewalbonaire.org). The model uses DeepLabV3+ trained in TagLab to achieve fast and consistent annotation of Staghorn in local underwater orthomosaics for restoration monitoring. It uses existing TagLab scripts, custom core source patches, and preprocessing utilities (see SOP.pdf) Six iterations were created, two of which are highlighted here:
+- **Stag_v1++** (Baseline Production): Optimized with Focal Tversky loss at batch size 8 which provided an initial 98% balanced F1 baseline.
+- **Stag_v1FB** (Boundary Refined): Enhanced with a hybrid **Focal + Boundary Loss** schedule to increase edge precision.
 
 Staghorn corals (*Acropora cervicornis*) are a critically endangered species in Caribbean reef ecosystems. Scalable monitoring of restoration sites over time intervals is essential for success, and manual annotation of large orthomosaics (500 + megapixels) is not only time-consuming (20+ hours) but also subjective. This model aims to reduce annotation bottlenecks for RRFB while maintaining high accuracy.
 
@@ -23,22 +25,23 @@ The model performs **pixel-wise semantic segmentation** on underwater orthomosai
 
 ---
 
-## Model Architecture & Training
+### Training Details & Ablation Setup
 
-- **Architecture:** DeepLabV3+ (encoder-decoder with atrous convolution)
-- **Backbone:** ResNet50
-- **Training Framework:** TagLab (semantic segmentation toolbox)
-- **Datasets:** Trained on 6 orthomosaics split into 3-6 working areas
-- **Validation:** 70% training / 15% validation / 15% test split
+| Hyperparameter / Setting | `Stag_v1++` | `Stag_v1FB` |
+| :--- | :--- | :--- |
+| **Loss Function** | Focal Tversky ($\alpha=0.6, \gamma=0.75$) | Focal + Boundary Loss ($\text{Epoch}_{\text{switch}}=10, \text{Epoch}_{\text{trans}}=10$) |
+| **Learning Rate** | $0.00005$ | $0.000025$ (Halved to suppress gradient spikes) |
+| **Batch Size** | 8 | 4 (Stabilized with step damping) |
+| **Completed Epochs** | 13 (Interrupted baseline) | 50 (Full boundary convergence) |
 
-### Training Details
+### Similarities
 
 - **Total pixels** ~700 million
 - **Class balance** 95% background, 5% staghorn
 - **Training images:** 513×513 RGB tiles (extracted from full orthomosaics)
-- **Epochs:** 50
-- **Scale factor:** 0.9
-- **Pixel normalization:** [0.5932, 0.5870, 0.5226] (per-channel means)
+- **Pixel Normalization** [0.5932, 0.5870, 0.5226]
+- **Backbone** ResNet50 (output stride 16)
+- **Scale Factor** 0.9
 
 ---
 
@@ -129,12 +132,21 @@ Model detected staghorn coverage at approximately **5.6%** of test orthomosaic, 
 
 ## Technical Notes
 
+### Critical Backend Patches (TagLab Source Modifications)
+
+Training DeepLabV3+ with custom boundary loss under modern Python environments required several programmatic interventions:
+
+- **NumPy Boolean Deprecation (`models/losses.py`):** Replaced legacy `np.bool` with Python `bool` across distance-transform conversion arrays (`one_hot2dist`) to prevent runtime failure in modern environments.
+- **Device Tensor Mismatches (`models/losses.py`):** Corrected boundary loss normalization bounds (`xmin`, `xmax`) from `torch.tensor` declarations to primitive floats (`-90.0`, `90.0`) to avoid fatal CPU/GPU tensor mismatch exceptions during epoch 10 turnover.
+- **Validation Memory Overflow (`models/training.py`):** Disabled memory-heavy full-dataset flattening (`flag_compute_mIoU = False`) during test passes to prevent RAM exhaustion on large test suites.
+- **Alpha Channel Harmonization (`scripts/fix_channel_mismatch.py`):** Developed a standalone pipeline to detect and flatten 4-channel RGBA tiles onto black backgrounds, eliminating dimension broadcast crashes in `computeAverage()`.
+
 ### Known Limitations
 
-1  **3D Challenges:** In cases where fish are above live staghorn, the model learns fish = staghorn; extensive training would be needed to combat this
+1.  **3D Challenges:** In cases where fish are above live staghorn, the model learns fish = staghorn
 2. **Growth tips:** Most post AI processing is used to expand staghorn very marginally as the growth tips are not being defined, more training will likely fix this.
 3. **Edge effects:** Segmentation is less reliable at orthomosaic tile boundaries; overlap-based inference can mitigate this.
-4. **Lighting variation:** Model generalizes well across Bonaire dive sites but may require retraining if working in significantly different light conditionsor locations..
+4. **Lighting variation:** Model generalizes well across Bonaire dive sites but may require retraining if working in significantly different light conditions or locations.
 
 ### Improvements for Next Version (Stag_v2)
 
