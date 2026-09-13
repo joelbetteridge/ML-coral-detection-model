@@ -44,6 +44,8 @@ The model performs **pixel-wise semantic segmentation** on underwater orthomosai
 
 ## Results & Methodology Note
 
+## Currently doing stats on Stag_v1FB , below is the results from Stag_v1++
+
 Model evaluated on unseen test orthomosaic Site = (Pink Beac,  Timescale=  2,Size =  ~743 megapixels).
 
 **Manual refinement:** Following initial AI segmentation, I performed targeted human editing (~3 hours) to remove false positives (primarily fish and soft coral misclassifications) and refine staghorn borders for monitoring consistency. Large staghorn clusters were accepted as-is where the AI output met acceptable annotation standards, as determining live vs. dead coral tissue is subjective and outside the scope of this validation.
